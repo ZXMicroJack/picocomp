@@ -64,34 +64,14 @@ void cvideo_init_irq(PIO pio, uint data_pin, uint sync_pin, cvideo_data_callback
     }
 }
 
-
-
-#if 1 // DMA
-
-// #define CVIDEO_LINES 576
-// // Pixels per line should be a multiple of 32
-// // For very high or very low pixel counts, DATA_DELAY within cvideo.pio may need adjustment
-// #define CVIDEO_PIX_PER_LINE 768
-
-// uint32_t viddata[CVIDEO_LINES*CVIDEO_PIX_PER_LINE/32];
-// uint32_t viddata[CVIDEO_LINES][CVIDEO_PIX_PER_LINE/32];
-uint32_t * address_pointer; // = &viddata[0][0];
+static uint32_t * address_pointer; // = &viddata[0][0];
 
 void cvideo_init_dma(PIO pio, uint data_pin, uint sync_pin, void *frame) {
-//   for (int i=0; i<CVIDEO_LINES; i++)
-//     for (int j=0; j<(CVIDEO_PIX_PER_LINE/32); j++)
-//       viddata[i][j] = (i&0x8) ? 0xffff0000 : 0x0000ffff;
-//       viddata[i*CVIDEO_PIX_PER_LINE/32+j] = (i&0x8) ? 0xffff0000 : 0x0000ffff;
-
     if (CVIDEO_PIX_PER_LINE % 32 != 0) {
         printf("ERROR: Horizontal pixel count must be a multiple of 32\r\n");
     }
     else {
         cvideo_pio = pio;
-//         data_callback = callback;
-//         if (pio_get_index(pio) == 1){
-//             pio_irq_id = PIO1_IRQ_1;
-//         }
 
         // Run the data clock 32x faster than needed to reduce horizontal jitter due to synchronisation between SMs
         float data_clockdiv = (clock_get_hz(clk_sys) / (CVIDEO_PIX_PER_LINE / DATA_INTERVAL)) / CLOCKS_PER_BIT;
@@ -110,16 +90,10 @@ void cvideo_init_dma(PIO pio, uint data_pin, uint sync_pin, void *frame) {
         cvdata_program_init(pio, DATA_SM_ID, offset_data, data_clockdiv, data_pin);
         cvsync_program_init(pio, SYNC_SM_ID, offset_sync, sync_clockdiv, sync_pin);
 
-        // Enable FIFO refill interrupt for data state machine
-//         irq_set_enabled(pio_irq_id, true);
-//         irq_set_exclusive_handler(pio_irq_id, cvdata_isr);
-//         irq_set_priority(pio_irq_id, 0);
-//         cvideo_pio->inte1 = 1 << 4 + DATA_SM_ID;
-
         /////////////////////////////////////////////////////////////////////////////////////////////////////
         // ===========================-== DMA Data Channels =================================================
         /////////////////////////////////////////////////////////////////////////////////////////////////////
-#if 1
+
         // DMA channels - 0 sends screen data, 1 reconfigures and restarts 0
         int chan_0 = 0;
         int chan_1 = 1;
@@ -133,7 +107,6 @@ void cvideo_init_dma(PIO pio, uint data_pin, uint sync_pin, void *frame) {
         channel_config_set_read_increment(&c0, true);                        // yes read incrementing
         channel_config_set_write_increment(&c0, false);                      // no write incrementing;
         channel_config_set_dreq(&c0, pio_get_dreq(pio, sm, true)) ;                        // DREQ_PIO0_TX2 pacing (FIFO)
-//         channel_config_set_dreq(&c0, DREQ_PIO0_TX2) ;                        // DREQ_PIO0_TX2 pacing (FIFO)
         channel_config_set_chain_to(&c0, chan_1);                        // chain to other channel
 
         dma_channel_configure(
@@ -162,10 +135,6 @@ void cvideo_init_dma(PIO pio, uint data_pin, uint sync_pin, void *frame) {
         );
 
         dma_start_channel_mask((1u << chan_0)) ;
-//         pio_enable_sm_mask_in_sync(pio, ((1u << DATA_SM_ID) | (1u << SYNC_SM_ID)));
-#else
-//         pio_enable_sm_mask_in_sync(pio, ((1u << SYNC_SM_ID)));
-#endif
     }
 }
 
