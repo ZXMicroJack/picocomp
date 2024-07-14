@@ -1,0 +1,81 @@
+;
+; Copyright (c) 2020 Raspberry Pi (Trading) Ltd.
+;
+; SPDX-License-Identifier: BSD-3-Clause
+;
+
+; Change this value to alter data SM clock speed.
+; Increased speed reduces jitter, particularly at low row pixel counts
+.define DATA_DELAY 4
+
+.define DATA_IRQ 0
+.define PUBLIC CLOCKS_PER_BIT DATA_DELAY + 2
+
+.program cvsync
+.side_set 1
+
+; Number of video lines per field stored in OSR
+; Y register used as odd/even flag: FFFFFFFF = odd, 0 = even
+.wrap_target
+vsync_start:
+    ; First set of short pulses: 6 for even, 5 for odd
+    jmp !y set_even_counter side 0
+    set x, 3 side 1 ; odd pulses, 3 + 1 + 1
+    jmp vsync_short_pulse side 1 [13]
+set_even_counter:
+    set x, 4 side 1 [14] ; even_pulses, 4 + 1 + 1
+
+vsync_short_pulse:
+    nop side 0
+    jmp x-- vsync_short_pulse [14] side 1
+
+    ; Long vsync pulses, always 5x
+    set x, 4 side 0 [13]
+vsync_long_start:
+    jmp !x vsync_long_end [1] side 1;
+    jmp x-- vsync_long_start [13] side 0;
+vsync_long_end:
+
+    ; Second set of short pulses: 5 for even, 4 for odd
+    jmp !y set_even_counter_2 side 0
+    set x, 2 side 1 ; odd pulses, 2 + 1 + 1
+    jmp flip_field_flag side 1 [12] ; Delays are 1 cycle less due to flip instruction
+set_even_counter_2:
+    set x, 3 side 1 [13] ; even_pulses, 3 + 1 + 1
+    
+flip_field_flag:
+    mov y ! y side 1 ; flip y between fields
+
+vsync_short_pulse_2:
+    nop side 0
+    jmp x-- vsync_short_pulse_2 [14] side 1;
+
+    ; 17 line blanking period
+    set x 16 side 0 [1]
+hsync_blank_start:
+    nop side 1 [14]
+    jmp !x hsync_blank_end side 1 [14]; 30us blank interval
+    jmp x-- hsync_blank_start side 0 [1] ; 4us hsync pulse
+hsync_blank_end:
+
+    ; 288 lines of video data
+    mov x osr side 0 [1]
+hsync_video:
+    nop side 1 [2] ; 6us back porch
+    irq set DATA_IRQ side 1 [13] ; 52us data out
+    jmp !x vsync_start side 1 [12] ; 2us front porch + 12 cycles data out,
+    jmp x-- hsync_video side 0 [1] ; 4us hsync pulse
+
+.wrap
+
+; Pixels per line is stored in X register
+.program cvdata
+.wrap_target
+    set pins 0
+    mov y x
+    wait 1 irq DATA_IRQ
+data_out:
+    out pins, 1 [DATA_DELAY]; [30]
+    jmp y-- data_out
+
+.wrap
