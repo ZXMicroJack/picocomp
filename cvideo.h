@@ -11,5 +11,6 @@
 typedef uint32_t (*cvideo_data_callback_t)(void); 
 
 void cvideo_init(PIO pio, uint data_pin, uint sync_pin, cvideo_data_callback_t callback); 
+void cvideo_init_dma(PIO pio, uint data_pin, uint sync_pin, void *frame);
 
 #endif

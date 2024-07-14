@@ -43,8 +43,6 @@ uint32_t data_callback(void) {
   return data;
 }
 
-
-
 int main()
 {
   // Defaults: UART 0, TX pin 0, RX pin 1, baud rate 115200
@@ -59,7 +57,6 @@ int main()
   printf("Running test\n");
   printf("Running test\n");
 
-
   for (int i=0; i<CVIDEO_LINES; i++)
     for (int j=0; j<LINE_WORD_COUNT; j++)
       pix[i][j] = (i&0x8) ? 0xffff0000 : 0x0000ffff;
@@ -67,7 +64,8 @@ int main()
       // PIO starts with odd lines
   current_line = 1;
   current_pix = 0;
-  cvideo_init(pio0, CVIDEO_DATA_PIN, CVIDEO_SYNC_PIN, data_callback);
+//   cvideo_init(pio0, CVIDEO_DATA_PIN, CVIDEO_SYNC_PIN, data_callback);
+  cvideo_init_dma(pio0, CVIDEO_DATA_PIN, CVIDEO_SYNC_PIN, &pix[0][0]);
 
 
 //   pong_init();

@@ -44,6 +44,9 @@ target_link_libraries(pico-composite-video
         hardware_timer
         hardware_clocks
         )
+target_compile_options(pico-composite-video PUBLIC
+  "-DUSE_DMA"
+  )
 
 pico_set_binary_type(pico-composite-video no_flash)
 
