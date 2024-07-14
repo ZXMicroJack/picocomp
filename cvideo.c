@@ -25,7 +25,7 @@ static void cvdata_isr(void) {
     irq_clear(pio_irq_id);
 }
 
-void cvideo_init(PIO pio, uint data_pin, uint sync_pin, cvideo_data_callback_t callback) {
+void cvideo_init_irq(PIO pio, uint data_pin, uint sync_pin, cvideo_data_callback_t callback) {
     if (CVIDEO_PIX_PER_LINE % 32 != 0) {
         printf("ERROR: Horizontal pixel count must be a multiple of 32\r\n");
     }
@@ -74,13 +74,13 @@ void cvideo_init(PIO pio, uint data_pin, uint sync_pin, cvideo_data_callback_t c
 // #define CVIDEO_PIX_PER_LINE 768
 
 // uint32_t viddata[CVIDEO_LINES*CVIDEO_PIX_PER_LINE/32];
-uint32_t viddata[CVIDEO_LINES][CVIDEO_PIX_PER_LINE/32];
-uint32_t * address_pointer = &viddata[0][0];
+// uint32_t viddata[CVIDEO_LINES][CVIDEO_PIX_PER_LINE/32];
+uint32_t * address_pointer; // = &viddata[0][0];
 
 void cvideo_init_dma(PIO pio, uint data_pin, uint sync_pin, void *frame) {
-  for (int i=0; i<CVIDEO_LINES; i++)
-    for (int j=0; j<(CVIDEO_PIX_PER_LINE/32); j++)
-      viddata[i][j] = (i&0x8) ? 0xffff0000 : 0x0000ffff;
+//   for (int i=0; i<CVIDEO_LINES; i++)
+//     for (int j=0; j<(CVIDEO_PIX_PER_LINE/32); j++)
+//       viddata[i][j] = (i&0x8) ? 0xffff0000 : 0x0000ffff;
 //       viddata[i*CVIDEO_PIX_PER_LINE/32+j] = (i&0x8) ? 0xffff0000 : 0x0000ffff;
 
     if (CVIDEO_PIX_PER_LINE % 32 != 0) {
@@ -125,7 +125,7 @@ void cvideo_init_dma(PIO pio, uint data_pin, uint sync_pin, void *frame) {
         int chan_1 = 1;
         int sm = DATA_SM_ID;
 
-//         address_pointer = frame;
+        address_pointer = frame;
 
         // Channel Zero (sends color data to PIO VGA machine)
         dma_channel_config c0 = dma_channel_get_default_config(chan_0);  // default configs
@@ -140,7 +140,7 @@ void cvideo_init_dma(PIO pio, uint data_pin, uint sync_pin, void *frame) {
             chan_0,                 // Channel to be configured
             &c0,                        // The configuration we just created
             &pio->txf[sm],          // write address (RGB PIO TX FIFO)
-            &viddata,            // The initial read address (pixel color array)
+            frame,            // The initial read address (pixel color array)
             CVIDEO_LINES*CVIDEO_PIX_PER_LINE/32,                    // Number of transfers; in this case each is 1 byte.
             false                       // Don't start immediately.
         );

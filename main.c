@@ -20,27 +20,32 @@
 
 #define LINE_WORD_COUNT CVIDEO_PIX_PER_LINE / 32
 
-uint32_t pix[CVIDEO_LINES][LINE_WORD_COUNT];
+#define CVIDEO_MAX_WORDS (CVIDEO_LINES*LINE_WORD_COUNT)
+uint32_t pix[CVIDEO_LINES*LINE_WORD_COUNT];
 uint32_t current_pix = 0;
 uint32_t current_line = 0;
 
+
+
 uint32_t data_callback(void) {
-  uint32_t *line = pix[current_line];
-  uint32_t data = line[current_pix];
-  current_pix++;
-
-  if (current_pix == LINE_WORD_COUNT) {
-    current_pix = 0;
-    current_line = current_line + 2;
-
-    if (current_line == CVIDEO_LINES + 1){
-      current_line = 0;
-    }
-    else if (current_line == CVIDEO_LINES){
-      current_line = 1;
-    }
-  }
-  return data;
+//   uint32_t *line = pix[current_line];
+//   uint32_t data = line[current_pix];
+//   current_pix++;
+//
+//   if (current_pix == LINE_WORD_COUNT) {
+//     current_pix = 0;
+//     current_line = current_line + 2;
+//
+//     if (current_line == CVIDEO_LINES + 1){
+//       current_line = 0;
+//     }
+//     else if (current_line == CVIDEO_LINES){
+//       current_line = 1;
+//     }
+//   }
+//   return data;
+  if (current_pix >= CVIDEO_MAX_WORDS) current_pix = 0;
+  return pix[current_pix++];
 }
 
 int main()
@@ -59,13 +64,13 @@ int main()
 
   for (int i=0; i<CVIDEO_LINES; i++)
     for (int j=0; j<LINE_WORD_COUNT; j++)
-      pix[i][j] = (i&0x8) ? 0xffff0000 : 0x0000ffff;
+      pix[i*LINE_WORD_COUNT+j] = (i&0x8) ? 0xffff0000 : 0x0000ffff;
 
       // PIO starts with odd lines
   current_line = 1;
   current_pix = 0;
-//   cvideo_init(pio0, CVIDEO_DATA_PIN, CVIDEO_SYNC_PIN, data_callback);
-  cvideo_init_dma(pio0, CVIDEO_DATA_PIN, CVIDEO_SYNC_PIN, &pix[0][0]);
+//   cvideo_init_irq(pio0, CVIDEO_DATA_PIN, CVIDEO_SYNC_PIN, data_callback);
+  cvideo_init_dma(pio0, CVIDEO_DATA_PIN, CVIDEO_SYNC_PIN, &pix[0]);
 
 
 //   pong_init();
