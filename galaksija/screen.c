@@ -4,32 +4,18 @@
 #include "Z80.h"
 
 #include <stdio.h>
+#include <signal.h>
 #include <stdint.h>
 #include "galkeys.h"
 
 static SDL_Surface *screen;
-//extern byte mem[0x10000];
-//uint8_t specKeys[8];
 int quit = 0;
 int debug = 0;
 
-#if 0
-unsigned long zxColours[] = {
-  0x000000, 0x0000d7, 0xd70000, 0xd700d7,
-  0x00d700, 0x00d7d7, 0xd7d700, 0xd7d7d7,
-  0x000000, 0x0000ff, 0xff0000, 0xff00ff,
-  0x00ff00, 0x00ffff, 0xffff00, 0xffffff
-};
+void sighandler(int *n) {
+	quit = 1;
+}
 
-
-Uint32 colourLut[16];
-#endif
-
-static void (*pupdateScreen)() = (void (*)())NULL;
-
-static void initScreenReal();
-
-void hw_PollKeyboard();
 void hw_UpdateScreen() {
   /* Lock the screen for direct access to the pixels */
   if ( SDL_MUSTLOCK(screen) ) {
@@ -39,7 +25,7 @@ void hw_UpdateScreen() {
       }
   }
 
-  pupdateScreen();
+  machine_UpdateScreen();
 
   if ( SDL_MUSTLOCK(screen) ) {
       SDL_UnlockSurface(screen);
@@ -48,15 +34,10 @@ void hw_UpdateScreen() {
   /* Update just the part of the display that we've changed */
   SDL_UpdateRect(screen, 0, 0, 256*2, 192*2);
 
-	pollKeyboard();
+	hw_Poll();
 }
 
-void hw_initScreen(void (*scrUpd)()) {
-	pupdateScreen = scrUpd;
-	initScreenReal();
-}
-
-static void initScreenReal() {
+void hw_InitScreen() {
   /* Initialize the SDL library */
   if( SDL_Init(SDL_INIT_VIDEO) < 0 ) {
      fprintf(stderr,
@@ -66,6 +47,7 @@ static void initScreenReal() {
 
   /* Clean up on exit */
   atexit(SDL_Quit);
+  
   /*
   * Initialize the display in a 640x480 8-bit palettized mode,
   * requesting a software surface
@@ -77,17 +59,6 @@ static void initScreenReal() {
      exit(1);
   }
 
-#if 0
-  for (int i=0; i<sizeof zxColours / sizeof zxColours[0]; i++) {
-    /* Map the color yellow to this display (R=0xff, G=0xFF, B=0x00)
-       Note:  If the display is palettized, you must set the palette first.
-    */
-    colourLut[i] = SDL_MapRGB(screen->format, zxColours[i]>>16,
-      (zxColours[i]>>8) & 0xff, zxColours[i] & 0xff);
-  }
-
-  memset(specKeys, 0xff, sizeof specKeys);
-#endif
   quit = 0;
 }
 
@@ -135,24 +106,6 @@ void hw_PutPixel(int x, int y, uint32_t pixel) {
   putpixel_ll(screen, x*2, y*2+1, _pixel);
   putpixel_ll(screen, x*2+1, y*2+1, _pixel);
 }
-
-//0xfefe  SHIFT, Z, X, C, V            0xeffe  0, 9, 8, 7, 6
-//0xfdfe  A, S, D, F, G                0xdffe  P, O, I, U, Y
-//0xfbfe  Q, W, E, R, T                0xbffe  ENTER, L, K, J, H
-//0xf7fe  1, 2, 3, 4, 5                0x7ffe  SPACE, SYM SHFT, M, N, B
-#if 0
-uint8_t scancodeLut[8][5] = {
-	{SDLK_LSHIFT, SDLK_z, SDLK_x, SDLK_c, SDLK_v},
-	{SDLK_a, SDLK_s, SDLK_d, SDLK_f, SDLK_g},
-	{SDLK_q, SDLK_w, SDLK_e, SDLK_r, SDLK_t},
-	{SDLK_1, SDLK_2, SDLK_3, SDLK_4, SDLK_5},
-
-	{SDLK_0, SDLK_9, SDLK_8, SDLK_7, SDLK_6},
-	{SDLK_p, SDLK_o, SDLK_i, SDLK_u, SDLK_y},
-	{SDLK_RETURN, SDLK_l, SDLK_k, SDLK_j, SDLK_h},
-	{SDLK_SPACE, SDLK_LCTRL, SDLK_m, SDLK_n, SDLK_b}
-};
-#endif
 
 static uint16_t keymap(uint16_t scancode) {
 	switch(scancode) {
@@ -215,29 +168,7 @@ static uint16_t keymap(uint16_t scancode) {
 	return 0xff;
 }
 
-extern void processKey(uint16_t scancode, int pressed);
-#if 0
-void processKey(uint8_t scancode, int pressed) {
-	printf("processKey %02X pressed %d\n", scancode, pressed);
-	for (int r = 0; r < 8; r++) {
-		uint8_t mask = 0x01;
-		for (int c = 0; c<5; c++) {
-			if (scancode == scancodeLut[r][c]) {
-				if (pressed) {
-					specKeys[r] &= ~mask;
-				} else {
-					specKeys[r] |= mask;
-				}
-				printf("row %d column %d kb %02X\n", r, c, specKeys[r]);
-				return;
-			}
-			mask <<= 1;
-		}
-	}
-}
-#endif
-
-void hw_PollKeyboard() {
+void hw_Poll() {
 	SDL_Event event;
 
 	/* Poll for events */
@@ -267,3 +198,57 @@ void hw_PollKeyboard() {
 
 	}
 }
+
+
+uint8_t *hw_readIn(const char *file, uint8_t *buffer, int max, unsigned long *actual) {
+  FILE *f = fopen(file, "rb");
+  if (f) {
+    fseek(f, 0, SEEK_END);
+    unsigned long size = ftell(f);
+    fseek(f, 0, SEEK_SET);
+
+    int toRead = max > size ? size : max;
+
+    if (buffer == NULL) {
+      buffer = (uint8_t *)malloc(toRead);
+    }
+    int l = fread(buffer, 1, toRead, f);
+    fclose(f);
+    printf("Read %d bytes from %s\n", l, file);
+
+    if (actual != NULL) *actual = l;
+
+    return buffer;
+  } else {
+    printf("Couldn't open file %s\n", file);
+  }
+  return NULL;
+}
+
+void hw_writeOut(const char *filename, void *data, int len) {
+  FILE *f = fopen(filename, "wb");
+  if (f) {
+    fwrite(data, 1, len, f);
+    fclose(f);
+  }
+}
+
+int main(int argc, char **argv) {
+
+  signal(SIGINT, sighandler);
+
+  hw_InitScreen();
+
+  while (!quit) {
+  	machine_Poll();
+    hw_UpdateScreen();
+
+  }
+
+	machine_Kill();
+//  writeOut("GALXram.bin", &mem[0x2000], 0x2000);
+
+  return 0;
+}
+
+

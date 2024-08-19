@@ -1,6 +1,5 @@
 /* This file is part of fpga-spec by ZXMicroJack - see LICENSE.txt for moreinfo */
 #include <stdio.h>
-#include <signal.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -8,7 +7,7 @@
 #include "Z80.h"
 #include "screen.h"
 #include "pc.h"
-#include "galaksija.h"
+#include "machine.h"
 
 /*******************************  ROMS ***************************/
 #define UKUS 0x40 // uk is 0x40 us is 0x00
@@ -37,18 +36,15 @@ const static byte rom[] = {
 };
 
 /*******************************  STATE ***************************/
-byte mem[0x10000];
-uint8_t keymatrix[8];
-uint8_t latch_d5 = 0;
-uint8_t latch_byte = 0;
+static byte mem[0x10000];
+static uint8_t keymatrix[8];
+static uint8_t latch_d5 = 0;
+static uint8_t latch_byte = 0;
 
 
 /*******************************  PROTOTYPES ***************************/
 
-void updateScreen();
-void initScreenGALX();
-//void reset();
-void update(uint8_t d);
+//void update(uint8_t d);
 
 //int nmiPending = 0;
 //int nmiGeneration = 0;
@@ -56,7 +52,7 @@ void update(uint8_t d);
 
 
 /*******************************  ADDRESS DECODING ***************************/
-uint32_t at(uint16_t a) {
+static uint32_t at(uint16_t a) {
 	uint8_t ram1 = (a & 0xf800) == 0x2800; //00101
 	uint8_t ram2 = (a & 0xf800) == 0x3000; //00110
 	uint8_t ram3 = (a & 0xf800) == 0x3800; //00110
@@ -317,12 +313,6 @@ void tests() {
 	t(0x4fff, 0xffff);
 }
 
-#ifndef TESTS
-void sighandler(int *n) {
-	quit = 1;
-}
-#endif
-
 #if 0
 void key(uint8_t k) {
 }
@@ -338,64 +328,37 @@ void machine_ProcessKey(uint16_t scancode, int pressed) {
 }
 
 #ifndef TESTS
-int main(int argc, char **argv) {
+
+void machine_Init() {
   memset(mem, 0x00, sizeof mem);
-
-  signal(SIGINT, sighandler);
-
-  initScreen(updateScreen);
-
   Z80_Reset();
 
  Z80_Trace = 0;
 //   Z80_Trap = 0x0000;
 
 	Z80_IPeriod = 62500;
-#if 0
-	#define REFRESH_SCREEN_RELOAD 733
-	int refreshScreen = REFRESH_SCREEN_RELOAD;
-	int halt = 0;
-#endif
+}
 
-  while (Z80_Execute() && !quit) {
-  	Z80_Trace = debug;
-#if 0
-  	if (refreshScreen) refreshScreen--;
-  	else {
-  		refreshScreen = REFRESH_SCREEN_RELOAD;
-	    updateScreen();
-  	}
-#endif
-	    updateScreen();
+void machine_Poll() {
+	Z80_Trace = debug;
+	Z80_Execute();
+  tstates += Z80_IPeriod;
+}
 
-    tstates += Z80_IPeriod;
-//    Z80_Trace = 0;
-  }
-
+void machine_Kill() {
   Z80_RegisterDump();
 
   unsigned long realTstates = tstates + Z80_IPeriod - Z80_ICount;
 
   printf("Terminated after %lu tstates (%lu seconds)\n", realTstates, realTstates/3500000);
 
-//  writeOut("GALXram.bin", &mem[0x2000], 0x2000);
-
-  return 0;
 }
 #endif
-
-#ifdef TESTS
-int main(int argc, char **argv) {
-  tests();
-  return 0;
-}
-#endif
-
 
 // OUT (255),X - ends the vsync - signal for new frame
 //
 //;; DISP-2
-//L01AD:  LD      C,(IY+$23)      ;; load C the col count from RESULT_hi.
+	//L01AD:  LD      C,(IY+$23)      ;; load C the col count from REntLT_hi.
 //
 //        LD      R,A             ;; R increments with each opcode until A6
 //                                ;; goes low which generates the INT signal.
@@ -495,7 +458,7 @@ void updateScreenGALX() {
 #define SCREEN_AT		0x0000
 
 //CHROM_A <= LATCH_DATA(3 downto 0) & TMP(7) & TMP(5 downto 0);
-void updateScreen() {
+void machine_UpdateScreen() {
   int x, y;
   uint8_t b, c, inv = 0, m;
   uint16_t pos;
@@ -510,15 +473,20 @@ void updateScreen() {
         m = charrom[b + 128*(j%CHARHEIGHT)];
         pos ++;
       }
-      putpixel(i, j, (inv ^ (m & 0x80)) ? 0 : 1);
+      hw_PutPixel(i, j, (inv ^ (m & 0x80)) ? 0 : 1);
       m <<= 1;
     }
     y = (y + 1) % 8;
   }
 }
 
-void initScreenGALX() {
-  initScreen(updateScreenGALX2);
+#endif
+
+#ifdef TESTS
+int main(int argc, char **argv) {
+  tests();
+  return 0;
 }
 #endif
+
 
