@@ -138,10 +138,6 @@ void cvideo_init_dma(PIO pio, uint data_pin, uint sync_pin, void *frame) {
     }
 }
 
-#endif
-
-
-
 
 static inline void cvdata_program_init(PIO pio, uint sm, uint offset, float clockdiv, uint data_pin) {
     pio_sm_config c = cvdata_program_get_default_config(offset);

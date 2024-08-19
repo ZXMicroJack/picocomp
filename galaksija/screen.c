@@ -5,13 +5,15 @@
 
 #include <stdio.h>
 #include <stdint.h>
+#include "galkeys.h"
 
-SDL_Surface *screen;
-extern byte mem[0x10000];
-uint8_t specKeys[8];
+static SDL_Surface *screen;
+//extern byte mem[0x10000];
+//uint8_t specKeys[8];
 int quit = 0;
 int debug = 0;
 
+#if 0
 unsigned long zxColours[] = {
   0x000000, 0x0000d7, 0xd70000, 0xd700d7,
   0x00d700, 0x00d7d7, 0xd7d700, 0xd7d7d7,
@@ -21,8 +23,9 @@ unsigned long zxColours[] = {
 
 
 Uint32 colourLut[16];
+#endif
 
-void (*pupdateScreen)() = (void (*)())NULL;
+static void (*pupdateScreen)() = (void (*)())NULL;
 
 static void initScreenReal();
 
@@ -74,6 +77,7 @@ static void initScreenReal() {
      exit(1);
   }
 
+#if 0
   for (int i=0; i<sizeof zxColours / sizeof zxColours[0]; i++) {
     /* Map the color yellow to this display (R=0xff, G=0xFF, B=0x00)
        Note:  If the display is palettized, you must set the palette first.
@@ -83,6 +87,7 @@ static void initScreenReal() {
   }
 
   memset(specKeys, 0xff, sizeof specKeys);
+#endif
   quit = 0;
 }
 
@@ -124,37 +129,18 @@ void putpixel_ll(SDL_Surface *surface, int x, int y, Uint32 pixel)
 }
 
 void putpixel(int x, int y, uint32_t pixel) {
-  putpixel_ll(screen, x*2, y*2, pixel);
-  putpixel_ll(screen, x*2+1, y*2, pixel);
-  putpixel_ll(screen, x*2, y*2+1, pixel);
-  putpixel_ll(screen, x*2+1, y*2+1, pixel);
-}
-
-
-void updateScreenSpectrum() {
-  for (int i=191; i>=0; i--) {
-    for (int j=0; j<32; j++) {
-      int l = (i/64) * 2048;
-      l += (i & 7) * 256;
-      l += ((i & 63) / 8) * 32;
-
-      byte d = mem[16384+l+j];
-      int y = i / 8;
-      byte attr = mem[16384+2048*3+y*32+j];
-      Uint32 rgbInk = colourLut[(attr & 7) + ((attr&0x40) ? 8 : 0)];// ^ 0xffffff;
-      Uint32 rgbPaper = colourLut[((attr >> 3) & 7) + ((attr&0x40) ? 8 : 0)];// ^ 0xffffff;
-      for (int k=0; k<8; k++) {
-        putpixel(j*8+k, i, (d & 0x80) ? rgbInk : rgbPaper);
-        d <<= 1;
-      }
-    }
-  }
+	uint32_t _pixel = pixel ? 0xd7d7d7 : 0;
+  putpixel_ll(screen, x*2, y*2, _pixel);
+  putpixel_ll(screen, x*2+1, y*2, _pixel);
+  putpixel_ll(screen, x*2, y*2+1, _pixel);
+  putpixel_ll(screen, x*2+1, y*2+1, _pixel);
 }
 
 //0xfefe  SHIFT, Z, X, C, V            0xeffe  0, 9, 8, 7, 6
 //0xfdfe  A, S, D, F, G                0xdffe  P, O, I, U, Y
 //0xfbfe  Q, W, E, R, T                0xbffe  ENTER, L, K, J, H
 //0xf7fe  1, 2, 3, 4, 5                0x7ffe  SPACE, SYM SHFT, M, N, B
+#if 0
 uint8_t scancodeLut[8][5] = {
 	{SDLK_LSHIFT, SDLK_z, SDLK_x, SDLK_c, SDLK_v},
 	{SDLK_a, SDLK_s, SDLK_d, SDLK_f, SDLK_g},
@@ -166,7 +152,80 @@ uint8_t scancodeLut[8][5] = {
 	{SDLK_RETURN, SDLK_l, SDLK_k, SDLK_j, SDLK_h},
 	{SDLK_SPACE, SDLK_LCTRL, SDLK_m, SDLK_n, SDLK_b}
 };
+#endif
+#if 0
+uint16_t keymap(uint8_t scancode) {
+#undef KEYMAP
+#define KEYMAP(a,b) case SDLK_##b: return GKEY_##a;
 
+	switch(scancode) {
+#include "../keymap2.h"
+	}
+}
+#else
+uint16_t keymap(uint16_t scancode) {
+	switch(scancode) {
+		case SDLK_a: return GKEY_A;
+		case SDLK_b: return GKEY_B;
+		case SDLK_c: return GKEY_C;
+		case SDLK_d: return GKEY_D;
+		case SDLK_e: return GKEY_E;
+		case SDLK_f: return GKEY_F;
+		case SDLK_g: return GKEY_G;
+		case SDLK_h: return GKEY_H;
+		case SDLK_i: return GKEY_I;
+		case SDLK_j: return GKEY_J;
+		case SDLK_k: return GKEY_K;
+		case SDLK_l: return GKEY_L;
+		case SDLK_m: return GKEY_M;
+		case SDLK_n: return GKEY_N;
+		case SDLK_o: return GKEY_O;
+		case SDLK_p: return GKEY_P;
+		case SDLK_q: return GKEY_Q;
+		case SDLK_r: return GKEY_R;
+		case SDLK_s: return GKEY_S;
+		case SDLK_t: return GKEY_T;
+		case SDLK_u: return GKEY_U;
+		case SDLK_v: return GKEY_V;
+		case SDLK_w: return GKEY_W;
+		case SDLK_x: return GKEY_X;
+		case SDLK_y: return GKEY_Y;
+		case SDLK_z: return GKEY_Z;
+		case SDLK_SPACE: return GKEY_SPACE;
+		case SDLK_0: return GKEY_0;
+		case SDLK_1: return GKEY_1;
+		case SDLK_2: return GKEY_2;
+		case SDLK_3: return GKEY_3;
+		case SDLK_4: return GKEY_4;
+		case SDLK_5: return GKEY_5;
+		case SDLK_6: return GKEY_6;
+		case SDLK_7: return GKEY_7;
+		case SDLK_8: return GKEY_8;
+		case SDLK_9: return GKEY_9;
+		case SDLK_SEMICOLON: return GKEY_SEMI;
+		case SDLK_COLON: return GKEY_COLON;
+		case SDLK_COMMA: return GKEY_COMMA;
+		case SDLK_EQUALS: return GKEY_EQU;
+		case SDLK_PERIOD: return GKEY_DOT;
+		case SDLK_RETURN: return GKEY_RETURN;
+		case SDLK_LSHIFT: return GKEY_LSHIFT;
+		case SDLK_RSHIFT: return GKEY_RSHIFT;
+		case SDLK_SLASH: return GKEY_SLASH1;
+		case SDLK_UP: return GKEY_UP;
+		case SDLK_DOWN: return GKEY_DOWN;
+		case SDLK_LEFT: return GKEY_LEFT;
+		case SDLK_RIGHT: return GKEY_RIGHT;
+//		case SDLK_SLASH: return GKEY_SLASH2;
+		case SDLK_HOME: return GKEY_BREAK;
+		case SDLK_END: return GKEY_REPEAT;
+		case SDLK_PAGEUP: return GKEY_DELETE;
+		case SDLK_PAGEDOWN: return GKEY_LIST;
+	}
+	return 0xff;
+}
+#endif
+extern void processKey(uint16_t scancode, int pressed);
+#if 0
 void processKey(uint8_t scancode, int pressed) {
 	printf("processKey %02X pressed %d\n", scancode, pressed);
 	for (int r = 0; r < 8; r++) {
@@ -185,11 +244,12 @@ void processKey(uint8_t scancode, int pressed) {
 		}
 	}
 }
+#endif
 
 void pollKeyboard() {
 	SDL_Event event;
 
-/* Poll for events */
+	/* Poll for events */
 	while( SDL_PollEvent( &event ) ){
 			switch( event.type ){
 					/* Keyboard event */
@@ -202,7 +262,7 @@ void pollKeyboard() {
 								debug = !debug;
 							}
 
-							processKey(event.key.keysym.sym, event.type == SDL_KEYDOWN);
+							processKey(keymap(event.key.keysym.sym), event.type == SDL_KEYDOWN);
 							break;
 
 					/* SDL_QUIT event (window close) */

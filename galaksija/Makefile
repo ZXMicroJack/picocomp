@@ -10,7 +10,7 @@ LD	= gcc -g	# Linker used
 #CFLAGS	= -Wall -O2 -fomit-frame-pointer -DLSB_FIRST -DDEBUG
 CFLAGS	= -g -Wall -DLSB_FIRST -DDEBUG -D__64BIT__
 
-all:    Z80.o Z80Debug.o z80dasm runz80 tap2raw tapex mkfs jupiterace zx80 zx81 galaksija
+all:    Z80.o Z80Debug.o z80dasm galaksija
 
 %.o : %.c
 	gcc ${CFLAGS} -c -o $@ $<
@@ -29,7 +29,7 @@ runz80: runz80.o Z80.o screen.o
 jupiterace: jupiterace.o Z80.o screen.o Z80Debug.o
 	${LD} -g -s -o $@ $^ -lSDL
 
-galaksija: galaksija.o Z80.o screen.o Z80Debug.o
+galaksija: galaksija.o Z80.o screen.o Z80Debug.o pc.o
 	${LD} -g -s -o $@ $^ -lSDL
 
 zx80: zx80.o Z80.o screen.o Z80Debug.o
@@ -60,6 +60,11 @@ test:
 
 gal:
 	./galaksija emu ./grom/roma_b.bin
+
+
+galtests:
+	gcc -DTESTS -ogaltests1 galaksija.c
+	./galtests1
 
 listen:
 	play -b8 -esigned-integer -r48000 -c1 h.raw
