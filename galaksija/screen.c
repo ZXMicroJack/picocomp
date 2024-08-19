@@ -29,8 +29,8 @@ static void (*pupdateScreen)() = (void (*)())NULL;
 
 static void initScreenReal();
 
-void pollKeyboard();
-void updateScreen() {
+void hw_PollKeyboard();
+void hw_UpdateScreen() {
   /* Lock the screen for direct access to the pixels */
   if ( SDL_MUSTLOCK(screen) ) {
       if ( SDL_LockSurface(screen) < 0 ) {
@@ -51,7 +51,7 @@ void updateScreen() {
 	pollKeyboard();
 }
 
-void initScreen(void (*scrUpd)()) {
+void hw_initScreen(void (*scrUpd)()) {
 	pupdateScreen = scrUpd;
 	initScreenReal();
 }
@@ -95,7 +95,7 @@ static void initScreenReal() {
  * Set the pixel at (x, y) to the given value
  * NOTE: The surface must be locked before calling this!
  */
-void putpixel_ll(SDL_Surface *surface, int x, int y, Uint32 pixel)
+static void putpixel_ll(SDL_Surface *surface, int x, int y, Uint32 pixel)
 {
     int bpp = surface->format->BytesPerPixel;
     /* Here p is the address to the pixel we want to set */
@@ -128,7 +128,7 @@ void putpixel_ll(SDL_Surface *surface, int x, int y, Uint32 pixel)
     }
 }
 
-void putpixel(int x, int y, uint32_t pixel) {
+void hw_PutPixel(int x, int y, uint32_t pixel) {
 	uint32_t _pixel = pixel ? 0xd7d7d7 : 0;
   putpixel_ll(screen, x*2, y*2, _pixel);
   putpixel_ll(screen, x*2+1, y*2, _pixel);
@@ -153,17 +153,8 @@ uint8_t scancodeLut[8][5] = {
 	{SDLK_SPACE, SDLK_LCTRL, SDLK_m, SDLK_n, SDLK_b}
 };
 #endif
-#if 0
-uint16_t keymap(uint8_t scancode) {
-#undef KEYMAP
-#define KEYMAP(a,b) case SDLK_##b: return GKEY_##a;
 
-	switch(scancode) {
-#include "../keymap2.h"
-	}
-}
-#else
-uint16_t keymap(uint16_t scancode) {
+static uint16_t keymap(uint16_t scancode) {
 	switch(scancode) {
 		case SDLK_a: return GKEY_A;
 		case SDLK_b: return GKEY_B;
@@ -223,7 +214,7 @@ uint16_t keymap(uint16_t scancode) {
 	}
 	return 0xff;
 }
-#endif
+
 extern void processKey(uint16_t scancode, int pressed);
 #if 0
 void processKey(uint8_t scancode, int pressed) {
@@ -246,7 +237,7 @@ void processKey(uint8_t scancode, int pressed) {
 }
 #endif
 
-void pollKeyboard() {
+void hw_PollKeyboard() {
 	SDL_Event event;
 
 	/* Poll for events */
@@ -262,7 +253,7 @@ void pollKeyboard() {
 								debug = !debug;
 							}
 
-							processKey(keymap(event.key.keysym.sym), event.type == SDL_KEYDOWN);
+							machine_ProcessKey(keymap(event.key.keysym.sym), event.type == SDL_KEYDOWN);
 							break;
 
 					/* SDL_QUIT event (window close) */

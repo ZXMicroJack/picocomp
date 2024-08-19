@@ -8,19 +8,9 @@
 #include "Z80.h"
 #include "screen.h"
 #include "pc.h"
+#include "galaksija.h"
 
-byte mem[0x10000];
-uint8_t keymatrix[8];
-
-const static byte charrom[] = {
-#include "charrom.h"
-  };
-
-const static byte rom[] = {
-#include "rom.h"
-};
-
-
+/*******************************  ROMS ***************************/
 #define UKUS 0x40 // uk is 0x40 us is 0x00
 #define HALT 0x76
 #define NOP 0x00
@@ -34,17 +24,38 @@ const static byte rom[] = {
 #define TOP 56
 #define BOTTOM 248
 
+
+
+
+/*******************************  ROMS ***************************/
+const static byte charrom[] = {
+#include "charrom.h"
+  };
+
+const static byte rom[] = {
+#include "rom.h"
+};
+
+/*******************************  STATE ***************************/
+byte mem[0x10000];
+uint8_t keymatrix[8];
+uint8_t latch_d5 = 0;
+uint8_t latch_byte = 0;
+
+
+/*******************************  PROTOTYPES ***************************/
+
 void updateScreen();
 void initScreenGALX();
-void reset();
+//void reset();
 void update(uint8_t d);
 
-int nmiPending = 0;
-int nmiGeneration = 0;
-int vsyncPulse = 0;
+//int nmiPending = 0;
+//int nmiGeneration = 0;
+//int vsyncPulse = 0; 
 
-uint8_t latch_d5 = 0;
 
+/*******************************  ADDRESS DECODING ***************************/
 uint32_t at(uint16_t a) {
 	uint8_t ram1 = (a & 0xf800) == 0x2800; //00101
 	uint8_t ram2 = (a & 0xf800) == 0x3000; //00110
@@ -181,7 +192,6 @@ void Z80_Out (dword Port,byte Value) {
 //PIX_CLK_COUNTER = 12M288
 //CHROM_A <= LATCH_DATA(3 downto 0) & TMP(7) & TMP(5 downto 0);
 
-uint8_t latch_byte = 0;
 #ifndef TESTS
 uint16_t lastpc = 0;
 unsigned Z80_RDMEM(dword A) {
@@ -318,7 +328,7 @@ void key(uint8_t k) {
 }
 #endif
 
-void processKey(uint16_t scancode, int pressed) {
+void machine_ProcessKey(uint16_t scancode, int pressed) {
 	printf("processKey: scancode %02x pressed %d\n", scancode, pressed);
 	if (pressed) {
 		keymatrix[(scancode>>4)&0x7] |= (1<<(scancode&7));
@@ -333,7 +343,7 @@ int main(int argc, char **argv) {
 
   signal(SIGINT, sighandler);
 
-  initScreenGALX();
+  initScreen(updateScreen);
 
   Z80_Reset();
 
@@ -341,9 +351,11 @@ int main(int argc, char **argv) {
 //   Z80_Trap = 0x0000;
 
 	Z80_IPeriod = 62500;
+#if 0
 	#define REFRESH_SCREEN_RELOAD 733
 	int refreshScreen = REFRESH_SCREEN_RELOAD;
 	int halt = 0;
+#endif
 
   while (Z80_Execute() && !quit) {
   	Z80_Trace = debug;
@@ -366,7 +378,7 @@ int main(int argc, char **argv) {
 
   printf("Terminated after %lu tstates (%lu seconds)\n", realTstates, realTstates/3500000);
 
-  writeOut("GALXram.bin", &mem[0x2000], 0x2000);
+//  writeOut("GALXram.bin", &mem[0x2000], 0x2000);
 
   return 0;
 }
@@ -483,7 +495,7 @@ void updateScreenGALX() {
 #define SCREEN_AT		0x0000
 
 //CHROM_A <= LATCH_DATA(3 downto 0) & TMP(7) & TMP(5 downto 0);
-void updateScreenGALX2() {
+void updateScreen() {
   int x, y;
   uint8_t b, c, inv = 0, m;
   uint16_t pos;
