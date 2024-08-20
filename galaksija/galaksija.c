@@ -317,7 +317,69 @@ void key(uint8_t k) {
 }
 #endif
 
-void machine_ProcessKey(uint16_t scancode, int pressed) {
+static uint8_t key_lut[] = {
+	0x10, /* GKEY_A */
+	0x20, /* GKEY_B */
+	0x30, /* GKEY_C */
+	0x40, /* GKEY_D */
+	0x50, /* GKEY_E */
+	0x60, /* GKEY_F */
+	0x70, /* GKEY_G */
+	0x01, /* GKEY_H */
+	0x11, /* GKEY_I */
+	0x21, /* GKEY_J */
+	0x31, /* GKEY_K */
+	0x41, /* GKEY_L */
+	0x51, /* GKEY_M */
+	0x61, /* GKEY_N */
+	0x71, /* GKEY_O */
+	0x02, /* GKEY_P */
+	0x12, /* GKEY_Q */
+	0x22, /* GKEY_R */
+	0x32, /* GKEY_S */
+	0x42, /* GKEY_T */
+	0x52, /* GKEY_U */
+	0x62, /* GKEY_V */
+	0x72, /* GKEY_W */
+	0x03, /* GKEY_X */
+	0x13, /* GKEY_Y */
+	0x23, /* GKEY_Z */
+	0x73, /* GKEY_SPACE */
+	0x04, /* GKEY_0 */
+	0x14, /* GKEY_1 */
+	0x24, /* GKEY_2 */
+	0x34, /* GKEY_3 */
+	0x44, /* GKEY_4 */
+	0x54, /* GKEY_5 */
+	0x64, /* GKEY_6 */
+	0x74, /* GKEY_7 */
+	0x05, /* GKEY_8 */
+	0x15, /* GKEY_9 */
+	0x25, /* GKEY_SEMI */
+	0x35, /* GKEY_COLON */
+	0x45, /* GKEY_COMMA */
+	0x55, /* GKEY_EQU */
+	0x65, /* GKEY_DOT */
+//	0x65, /* GKEY_COMMA */
+	0x06, /* GKEY_RETURN */
+	0x56, /* GKEY_LSHIFT */
+	0x56, /* GKEY_RSHIFT */
+	0x75, /* GKEY_SLASH1 */
+	0x33, /* GKEY_UP */
+	0x43, /* GKEY_DOWN */
+	0x53, /* GKEY_LEFT */
+	0x63, /* GKEY_RIGHT */
+	0x75, /* GKEY_SLASH2 */
+	0x16, /* GKEY_BREAK */
+	0x26, /* GKEY_REPEAT */
+	0x36, /* GKEY_DELETE */
+	0x46  /* GKEY_LIST */
+};
+
+void machine_ProcessKey(uint8_t key, int pressed) {
+	if (key >= KEY_ENDSTOP) return;
+	
+	uint8_t scancode = key_lut[key];
 	printf("processKey: scancode %02x pressed %d\n", scancode, pressed);
 	if (pressed) {
 		keymatrix[(scancode>>4)&0x7] |= (1<<(scancode&7));
