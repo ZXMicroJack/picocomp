@@ -26,16 +26,19 @@ Z80.o:      Z80.c Z80.h Z80Codes.h Z80IO.h Z80DAA.h
 galaksija: galaksija.o Z80.o hwpc.o Z80Debug.o
 	${LD} -g -s -o $@ $^ -lSDL
 
-zx80: zx80.o Z80.o screen.o Z80Debug.o
+zx80: zx80.o Z80.o hwpc.o Z80Debug.o
 	${LD} -g -s -o $@ $^ -lSDL
 
-zx81: zx81.o Z80.o screen.o Z80Debug.o
+zx81: zx81.o Z80.o hwpc.o Z80Debug.o
 	${LD} -g -s -o $@ $^ -lSDL
 
-jupiterace.o: jupiterace.c
+jupiterace: jupiterace.o Z80.o hwpc.o Z80Debug.o
+	${LD} -g -s -o $@ $^ -lSDL
+
+jupiterace.o: jupiterace.c machine.h hardware.h
 galaksija.o: galaksija.c machine.h hardware.h
-zx80.o: zx80.c
-zx81.o: zx81.c zx80.c screen.h
+zx80.o: zx80.c machine.h hardware.h
+zx81.o: zx81.c machine.h hardware.h
 
 runz80.o: runz80.c
 
