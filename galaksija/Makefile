@@ -16,20 +16,14 @@ all:    Z80.o Z80Debug.o z80dasm galaksija
 	gcc ${CFLAGS} -c -o $@ $<
 
 Z80Dasm.o:  Z80Dasm.c
-screen.o: screen.c
+hwpc.o: hwpc.c hardware.h machine.h
 z80dasm:    Z80Dasm.o
 	$(LD) -s -o z80dasm Z80Dasm.o
 
 Z80Debug.o: Z80Debug.c Z80.h Z80IO.h Z80Dasm.h
 Z80.o:      Z80.c Z80.h Z80Codes.h Z80IO.h Z80DAA.h
 
-runz80: runz80.o Z80.o screen.o
-	${LD} -g -s -o $@ $^ -lSDL
-
-jupiterace: jupiterace.o Z80.o screen.o Z80Debug.o
-	${LD} -g -s -o $@ $^ -lSDL
-
-galaksija: galaksija.o Z80.o screen.o Z80Debug.o pc.o
+galaksija: galaksija.o Z80.o hwpc.o Z80Debug.o
 	${LD} -g -s -o $@ $^ -lSDL
 
 zx80: zx80.o Z80.o screen.o Z80Debug.o
@@ -39,7 +33,7 @@ zx81: zx81.o Z80.o screen.o Z80Debug.o
 	${LD} -g -s -o $@ $^ -lSDL
 
 jupiterace.o: jupiterace.c
-galaksija.o: galaksija.c
+galaksija.o: galaksija.c machine.h hardware.h
 zx80.o: zx80.c
 zx81.o: zx81.c zx80.c screen.h
 

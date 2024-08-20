@@ -5,8 +5,7 @@
 #include <stdint.h>
 
 #include "Z80.h"
-#include "screen.h"
-#include "pc.h"
+#include "hardware.h"
 #include "machine.h"
 
 /*******************************  ROMS ***************************/

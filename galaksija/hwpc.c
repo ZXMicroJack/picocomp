@@ -7,6 +7,8 @@
 #include <signal.h>
 #include <stdint.h>
 #include "galkeys.h"
+#include "hardware.h"
+#include "machine.h"
 
 static SDL_Surface *screen;
 int quit = 0;
