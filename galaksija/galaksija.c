@@ -394,14 +394,14 @@ void machine_Init() {
   memset(mem, 0x00, sizeof mem);
   Z80_Reset();
 
- Z80_Trace = 0;
+//  Z80_Trace = 0;
 //   Z80_Trap = 0x0000;
 
 	Z80_IPeriod = 62500;
 }
 
 void machine_Poll() {
-	Z80_Trace = debug;
+// 	Z80_Trace = debug;
 	Z80_Execute();
   tstates += Z80_IPeriod;
 }
@@ -526,7 +526,7 @@ void machine_UpdateScreen() {
 
   x = y = 0;
 
-  for (int j=0; j<192; j++) {
+  for (int j=0; j<208; j++) {
     pos = (j / CHARHEIGHT) * 32 + SCREEN_AT;
     for (int i=0; i<256; i++) {
       if ((i & 7) == 0) {

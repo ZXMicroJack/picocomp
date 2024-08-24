@@ -5,10 +5,10 @@
 # X86_ASM		Use inline 80x86 assembly (GCC only)
 
 CC	= gcc	# C compiler used
-LD	= gcc -g	# Linker used
+LD	= gcc -g -m32	# Linker used
 
 #CFLAGS	= -Wall -O2 -fomit-frame-pointer -DLSB_FIRST -DDEBUG
-CFLAGS	= -g -Wall -DLSB_FIRST -DDEBUG -D__64BIT__
+CFLAGS	= -g -m32 -Wall -DLSB_FIRST -DDEBUG -D__64BIT__
 
 all:    Z80.o Z80Debug.o z80dasm galaksija
 
