@@ -48,6 +48,10 @@ target_compile_options(pico-composite-video PUBLIC
   "-DUSE_DMA"
   )
 
+target_include_directories(pico-composite-video PUBLIC
+        ${CMAKE_CURRENT_LIST_DIR}
+        ${CMAKE_CURRENT_LIST_DIR}/galaksija)
+
 pico_set_binary_type(pico-composite-video no_flash)
 
 
@@ -69,7 +73,7 @@ pico_enable_stdio_uart(pcgalalksija 0)
 
 target_include_directories(pcgalalksija PUBLIC
         ${CMAKE_CURRENT_LIST_DIR}
-        ../galaksija)
+        ${CMAKE_CURRENT_LIST_DIR}/galaksija)
 
 
 # Add the standard library to the build

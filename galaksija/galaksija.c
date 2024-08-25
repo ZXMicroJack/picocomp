@@ -541,6 +541,14 @@ void machine_UpdateScreen() {
   }
 }
 
+int vsyncs = 0;
+void machine_Event(uint8_t event) {
+  switch(event) {
+    case EVENT_VSYNC:
+      vsyncs ++;
+  }
+}
+
 #endif
 
 #ifdef TESTS
