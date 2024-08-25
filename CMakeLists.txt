@@ -20,9 +20,8 @@ pico_sdk_init()
 # Add executable. Default name is the project name, version 0.1
 add_executable(pico-composite-video)
 
-pico_generate_pio_header(${PROJECT_NAME}  
-        ${CMAKE_CURRENT_LIST_DIR}/cvideo.pio
-)
+pico_generate_pio_header(${PROJECT_NAME}  ${CMAKE_CURRENT_LIST_DIR}/cvideo.pio)
+pico_generate_pio_header(${PROJECT_NAME}  ${CMAKE_CURRENT_LIST_DIR}/audio.pio)
 # add_executable(pico-composite-video main.c)
 
 target_sources(pico-composite-video PRIVATE main.c cvideo.c)
@@ -62,6 +61,8 @@ pico_add_extra_outputs(pico-composite-video)
 add_executable(pcgalalksija)
 
 pico_generate_pio_header(pcgalalksija ${CMAKE_CURRENT_LIST_DIR}/cvideo.pio)
+pico_generate_pio_header(pcgalalksija ${CMAKE_CURRENT_LIST_DIR}/audio.pio)
+
 target_sources(pcgalalksija PRIVATE cvideo.c ./galaksija/galaksija.c ./galaksija/hwpico.c ./galaksija/Z80.c)
 
 

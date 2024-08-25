@@ -6,6 +6,8 @@
 // Composite video output
 #define CVIDEO_DATA_PIN 2
 #define CVIDEO_SYNC_PIN 3
+#define AUDIO_IN_PIN    4
+#define AUDIO_OUT_PIN   5
 
 // Serial output
 #define SERIAL_RX_PIN PICO_DEFAULT_UART_RX_PIN

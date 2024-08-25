@@ -9,6 +9,8 @@ void machine_Poll();
 void machine_Kill();
 void machine_Init();
 void machine_Event(uint8_t event);
+uint32_t machine_GetAudioOut(void);
+void machine_AudioIn(uint32_t samples);
 
 #endif
 	

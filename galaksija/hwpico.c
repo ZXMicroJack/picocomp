@@ -7,6 +7,7 @@
 
 #include "hardware/timer.h"
 #include "hardware/gpio.h"
+#include "hardware/pio.h"
 #include "pico/bootrom.h"
 #include "connections.h"
 #include "cvideo.h"
@@ -14,6 +15,8 @@
 #include "galkeys.h"
 #include "hardware.h"
 #include "machine.h"
+
+#include "audio.pio.h"
 
 #include "Z80.h"
 
@@ -268,6 +271,25 @@ int main(int argc, char **argv) {
 //   return pix[current_pix++];
 // }
 
+#define AUDIO_SM_ID     0
+#define AUDIO_IRQ PIO1_IRQ_1
+
+int irqs = 0;
+
+static void audio_isr(void) {
+    pio_sm_put(pio1, AUDIO_SM_ID, machine_GetAudioOut());
+    machine_AudioIn(pio_sm_get(pio1, AUDIO_SM_ID));
+    irq_clear(AUDIO_IRQ);
+    irqs ++;
+}
+
+uint32_t machine_GetAudioOut(void) {
+  return 0;
+}
+
+void machine_AudioIn(uint32_t samples) {
+}
+
 int main()
 {
   // Defaults: UART 0, TX pin 0, RX pin 1, baud rate 115200
@@ -291,12 +313,23 @@ int main()
 //   struct repeating_timer timer;
 //   add_repeating_timer_ms(PONG_FRAME_INTERVAL_ms, pong_gametick_callback, NULL, &timer);
 
+  uint offset = pio_add_program(pio1, &audio_program);
+  audio_program_init(pio1, AUDIO_SM_ID, offset, AUDIO_IN_PIN, AUDIO_OUT_PIN);
+  pio_sm_put(pio1, AUDIO_SM_ID, 0);
+
+  irq_set_enabled(AUDIO_IRQ, true);
+  irq_set_exclusive_handler(AUDIO_IRQ, audio_isr);
+  irq_set_priority(AUDIO_IRQ,  0);
+  pio1->inte1 = 1 << 4 + AUDIO_SM_ID;
+
+
   machine_Init();
 
   int c;
   uint16_t k = 0;
   uint16_t lastkey = 0;
   uint64_t lastpress = 0;
+  uint64_t lastdbg = 0;
   for(;;) {
     c = getchar_timeout_us(2);
     if (c == '|') break;
@@ -311,6 +344,11 @@ int main()
       lastpress = 0;
       machine_ProcessKey(lastkey, 0);
       lastkey = 0;
+    }
+
+    if ((time_us_64() - lastdbg) > 1000000) {
+      lastdbg = time_us_64();
+      printf("irqs = %d\n", irqs);
     }
 
     machine_Poll();
