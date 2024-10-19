@@ -3,6 +3,7 @@
 #include "hardware/clocks.h"
 #include "hardware/dma.h"
 #include "hardware/irq.h"
+#include "machine.h"
 #include <stdio.h>
 
 // Sync PIO needs 2us per instruction
@@ -65,6 +66,12 @@ void cvideo_init_irq(PIO pio, uint data_pin, uint sync_pin, cvideo_data_callback
 }
 
 static uint32_t * address_pointer; // = &viddata[0][0];
+
+static int dma_chan;
+static void cvideo_vsync_isr(void) {
+    dma_irqn_acknowledge_channel(DMA_IRQ_0, dma_chan);
+    machine_Event(EVENT_VSYNC);
+}
 
 void cvideo_init_dma(PIO pio, uint data_pin, uint sync_pin, void *frame) {
     if (CVIDEO_PIX_PER_LINE % 32 != 0) {
@@ -134,7 +141,13 @@ void cvideo_init_dma(PIO pio, uint data_pin, uint sync_pin, void *frame) {
             false                               // Don't start immediately.
         );
 
+        dma_chan = chan_1;
+        irq_set_enabled(DMA_IRQ_0, true);
+        irq_set_exclusive_handler(DMA_IRQ_0, cvideo_vsync_isr);
+        dma_channel_set_irq0_enabled (chan_1, true);
+
         dma_start_channel_mask((1u << chan_0)) ;
+
     }
 }
 

@@ -1,0 +1,29 @@
+.program audio
+
+audio_start:
+.wrap_target
+  in pins,1
+  out pins,1
+.wrap
+
+% c-sdk {
+
+static inline void audio_program_init(PIO pio, uint sm, uint offset, uint in_pin, uint out_pin) {
+  pio_sm_config sm_config = audio_program_get_default_config(offset);
+
+  sm_config_set_out_pins(&sm_config, out_pin, 1); // assuming data pin is clock pin + 1
+  sm_config_set_in_pins(&sm_config, in_pin); // assuming data pin is clock pin + 1
+
+  // shift left
+  sm_config_set_out_shift(&sm_config, false, true, 32);
+  sm_config_set_clkdiv(&sm_config, 7812) ;
+
+  pio_gpio_init(pio, in_pin);
+  pio_gpio_init(pio, out_pin); // data pin
+  pio_sm_set_consecutive_pindirs(pio, sm, out_pin, 1, true);
+
+  pio_sm_init(pio, sm, offset, &sm_config);
+  pio_sm_set_enabled(pio, sm, true);
+}
+
+%}

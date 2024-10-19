@@ -7,6 +7,7 @@
 #include "pico/bootrom.h"
 #include "connections.h"
 #include "cvideo.h"
+#include "machine.h"
 
 
 #define CVIDEO_DATA_PIN 2
@@ -19,6 +20,15 @@
 uint32_t pix[CVIDEO_LINES*LINE_WORD_COUNT];
 uint32_t current_pix = 0;
 // uint32_t current_line = 0;
+
+int vsyncs = 0;
+void machine_Event(uint8_t event) {
+  switch(event) {
+    case EVENT_VSYNC:
+      vsyncs ++;
+  }
+}
+
 
 uint32_t data_callback(void) {
   if (current_pix >= CVIDEO_MAX_WORDS) current_pix = 0;
@@ -51,7 +61,7 @@ int main()
 //   add_repeating_timer_ms(PONG_FRAME_INTERVAL_ms, pong_gametick_callback, NULL, &timer);
 
   while(getchar_timeout_us(1000000) != 'q') {
-    printf("!\n");
+    printf("[vsyncs = %d]\n", vsyncs);
   }
 
 
