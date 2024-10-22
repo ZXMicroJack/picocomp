@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "pico/stdlib.h"
 
@@ -295,6 +296,10 @@ int main()
   // Defaults: UART 0, TX pin 0, RX pin 1, baud rate 115200
   stdio_init_all();
 
+#if defined(USB) && !defined (USBFAKE)
+  board_init();
+  tusb_init();
+#endif
   printf("PICOCOMP Hardware layer for RP2040 Microjack\'23\n\n");
 
   /* create pattern */
@@ -331,6 +336,7 @@ int main()
   uint64_t lastpress = 0;
   uint64_t lastdbg = 0;
   for(;;) {
+#ifndef USB
     c = getchar_timeout_us(2);
     if (c == '|') break;
     k = keymap(c);
@@ -350,6 +356,9 @@ int main()
       lastdbg = time_us_64();
       printf("irqs = %d\n", irqs);
     }
+#else
+    tuh_task();
+#endif
 
     machine_Poll();
     machine_UpdateScreen();

@@ -98,4 +98,52 @@ pico_set_binary_type(pcgalalksija no_flash)
 pico_add_extra_outputs(pcgalalksija)
 
 
+##### pico galaksija
+# Add executable. Default name is the project name, version 0.1
+add_executable(pcgalaksijausb)
+
+pico_generate_pio_header(pcgalaksijausb ${CMAKE_CURRENT_LIST_DIR}/cvideo.pio)
+pico_generate_pio_header(pcgalaksijausb ${CMAKE_CURRENT_LIST_DIR}/audio.pio)
+
+target_sources(pcgalaksijausb PRIVATE 
+	cvideo.c
+	./galaksija/galaksija.c
+	./galaksija/hwpico.c
+	./galaksija/Z80.c
+	./hid_app.c)
+
+
+pico_set_program_name(pcgalaksijausb "pcgalaksijausb")
+pico_set_program_version(pcgalaksijausb "0.1")
+
+pico_enable_stdio_usb(pcgalaksijausb 0)
+pico_enable_stdio_uart(pcgalaksijausb 0)
+
+target_include_directories(pcgalaksijausb PUBLIC
+        ${CMAKE_CURRENT_LIST_DIR}
+        ${CMAKE_CURRENT_LIST_DIR}/galaksija)
+
+
+# Add the standard library to the build
+target_link_libraries(pcgalaksijausb pico_stdlib)
+
+# Add any user requested libraries
+target_link_libraries(pcgalaksijausb
+        hardware_dma
+        hardware_pio
+        hardware_timer
+        hardware_clocks
+	tinyusb_host
+	tinyusb_board
+        )
+target_compile_options(pcgalaksijausb PUBLIC
+  "-DUSE_DMA"
+  "-DLSB_FIRST"
+  )
+
+pico_set_binary_type(pcgalaksijausb no_flash)
+
+
+pico_add_extra_outputs(pcgalaksijausb)
+
 
