@@ -7,7 +7,6 @@
 #include "Z80.h"
 #include "hardware.h"
 #include "machine.h"
-#include "menu.h"
 
 /*******************************  ROMS ***************************/
 #define UKUS 0x40 // uk is 0x40 us is 0x00
@@ -35,45 +34,11 @@ const static byte rom[] = {
 #include "rom.h"
 };
 
-#include "hyperload.h"
-
-/*******************************  BUILT IN GAMES ***************************/
-#include "catalog/formula1.h"
-#include "catalog/galakrat.h"
-#include "catalog/hardware.h"
-#include "catalog/jjack.h"
-#include "catalog/mminer.h"
-
-struct {
-  uint8_t *data;
-  uint16_t len;
-} games[] = {
-  {formula1_gtp, formula1_gtp_len},
-  {galakrat_gtp, galakrat_gtp_len},
-  {Hardware_gtp, Hardware_gtp_len},
-  {jjack_gtp, jjack_gtp_len},
-  {mminer_gtp, mminer_gtp_len},
-};
-
-static const char *main_menu[] = {
-	"Formula 1",
-	"Galakrat",
-	"Hardware",
-	"Jumping Jack",
-	"Manic Miner",
-	NULL
-};
-
 /*******************************  STATE ***************************/
 static byte mem[0x10000];
 static uint8_t keymatrix[8];
 static uint8_t latch_d5 = 0;
 static uint8_t latch_byte = 0;
-
-/*******************************  GTP loading ***************************/
-uint8_t *gtp_ptr = NULL;
-uint16_t gtp_len = 0;
-uint8_t gtp_patch = 0;
 
 
 /*******************************  PROTOTYPES ***************************/
@@ -126,22 +91,7 @@ static uint32_t at(uint16_t a) {
 
 unsigned long tstates = 0;
 
-
-/*
- * D(7 downto 0) <= hyperload_fifo_data(7 downto 0)
-    when A(15 downto 0) = X"FFFD" and IORQ_n = '0' and RD_n = '0' else (others => 'Z');
-        D(7 downto 0) <= "00000"&tape_busy&hyperload_fifo_empty&hyperload_fifo_full
-    when A(15 downto 0) = X"FFFC" and IORQ_n = '0' and RD_n = '0' else (others => 'Z');
-*/
-
 byte Z80_In (dword Port) {
-  byte out = 0xff;
-  if (Port == 0xfffd && gtp_len) {
-    out = *gtp_ptr++;
-    gtp_len --;
-  } else if (Port == 0xfffc) {
-    out = gtp_len == 0 ? 0x02 : 0x00;
-  }
 #if 0
    //0xfefe  SHIFT, Z, X, C, V            0xeffe  0, 9, 8, 7, 6
    //0xfdfe  A, S, D, F, G                0xdffe  P, O, I, U, Y
@@ -162,7 +112,7 @@ byte Z80_In (dword Port) {
 
 	return 0x1f | UKUS;
 #else
-  return out;
+  return 0xff;
 #endif
 }
 
@@ -242,14 +192,6 @@ uint16_t lastpc = 0;
 unsigned Z80_RDMEM(dword A) {
 	uint16_t pc = Z80_GetPC();
 
-  if (A == 0xfffd && gtp_len) {
-    byte out = *gtp_ptr++;
-    gtp_len --;
-    return out;
-  } else if (A == 0xfffc) {
-    return gtp_len == 0 ? 0x02 : 0x00;
-  }
-
   if (pc == 0x008b) {
     Z80_Regs regs;
     Z80_GetRegs(&regs);
@@ -263,27 +205,17 @@ unsigned Z80_RDMEM(dword A) {
   }
 
 //	printf("[R,%04X(%04X),PC%04X]\n", A, at(A), pc);
-// 	if (pc == 0) { printf("[RESET LASTPC:%04X]\n", lastpc); if (lastpc != 0) exit(1); }
+	if (pc == 0) { printf("[RESET LASTPC:%04X]\n", lastpc); if (lastpc != 0) exit(1); }
 	lastpc = pc;
 // kbd row 0x2000-0x2007 - 0-7
 // kbd col 0x2000-0x2037 - 0-6
 // latch 0x2038-0x203f - latch
 // repeats x 32
-//
-
-//  if (A == 0xe93 && gtp_patch) gtp_patch = 0;
-  if (A < 0x2000) {
-    if (gtp_patch && A >= 0x0edd && A < 0x0f02) {
-      return hyperload_bin[A-0x0edd];
-    } else {
-      return rom[A];
-    }
-  }
-
-  /* keyboard */
-	if (A <= 0x2037 && A >= 0x2000) {
+  if (A < 0x2000) return rom[A];
+	if (A <= 0x2034 && A >= 0x2001) { // maybe keyboard?
 		return 1 ^ (keymatrix[A&7] >> ((A>>3)&7)&1);
 	} else if (at(A) == 0xffffffff) {
+//	  printf("[R,%04X(%04X),PC%04X]\n", A, at(A), pc);
 	  return 0xff;
 	}
 
@@ -309,8 +241,6 @@ unsigned Z80_RDMEM(dword A) {
 /****************************************************************************/
 /* Write a byte to given memory location                                    */
 /****************************************************************************/
-static void updateScreenMemory(uint16_t pos);
-
 void Z80_WRMEM(dword A,byte V) {
   uint32_t a_ = at(A);
 
@@ -328,9 +258,6 @@ void Z80_WRMEM(dword A,byte V) {
   } else if (a_ != 0xffffffff) {
 //	  printf("[W,%04X(%04X),%02X]\n", A, a_, V);
     mem[a_-0x2000] = V;
-		if (a_ >= 0x2000 && a_ < (0x2000+32*16)) {
-			updateScreenMemory(a_ - 0x2000);
-		}
   }
 }
 #endif
@@ -449,72 +376,7 @@ static uint8_t key_lut[] = {
 	0x46  /* GKEY_LIST */
 };
 
-
-
-#if 0
-{
-		  extern void menu();
-		  menu();
-		  break;
-		}
-		case SDLK_F2: {
-		  fat32_Dir(get_partition(0), dirCB);
-		  extern void menu();
-		  menu();
-		  break;
-		}
-#endif
-
-#if 0
-const char *d[] = {
-	"one",
-	"two",
-	"three",
-	"four",
-	"five",
-	"six",
-	"seven",
-	"one",
-	"two",
-	"three",
-	"four",
-	"five",
-	"six",
-	"seven",
-	"one",
-	"two",
-	NULL
-};
-#endif
-// void menuOpen(int id, const char *menu)
-
-void machine_MenuCommand(int id, int item) {
-  printf("machine_MenuCommand: id %d item %d\n", id, item);
-  if (item < sizeof games / sizeof games[0]) {
-    gtp_ptr = games[item].data;
-    gtp_len = games[item].len;
-    gtp_patch = 1;
-    menuClose();
-  } else if (item == (sizeof games / sizeof games[0])) {
-		Z80_Reset();
-	}
-
-}
-
-static uint8_t menu_active = 0;
-void machine_ProcessKey(uint8_t key, int pressed) { // key == KEY_LSHIFT ||
-	if (pressed && (key == KEY_MENU || menuActive())) {
-		if (!menuActive()) {
-			menuOpen(1, main_menu);
-		}
-		else menuAction(key);
-		return ;
-	}
-
-	if (pressed && key == KEY_RESET) {
-		Z80_Reset();
-	}
-
+void machine_ProcessKey(uint8_t key, int pressed) {
 	if (key >= KEY_ENDSTOP) return;
 	
 	uint8_t scancode = key_lut[key];
@@ -532,15 +394,14 @@ void machine_Init() {
   memset(mem, 0x00, sizeof mem);
   Z80_Reset();
 
-//  Z80_Trace = 0;
+ Z80_Trace = 0;
 //   Z80_Trap = 0x0000;
 
- //	Z80_IPeriod = 62500;
-	Z80_IPeriod = 12288;
+	Z80_IPeriod = 62500;
 }
 
 void machine_Poll() {
-// 	Z80_Trace = debug;
+	Z80_Trace = debug;
 	Z80_Execute();
   tstates += Z80_IPeriod;
 }
@@ -658,33 +519,14 @@ void updateScreenGALX() {
 #define SCREEN_AT		0x0000
 
 //CHROM_A <= LATCH_DATA(3 downto 0) & TMP(7) & TMP(5 downto 0);
-
-
-static void updateScreenMemory(uint16_t pos) {
-	int x, y, i, j;
-	uint8_t b, m, inv = 0;
-
-	y = (pos - SCREEN_AT) >> 5;
-	x = (pos - SCREEN_AT) & 0x1f;
-
-	b = (mem[pos] & 0x3f)|((mem[pos]&0x80)>>1);
-	for (i=0; i<13; i++) {
-		m = charrom[b + 128*i];
-		for (j=0; j<8; j++) {
-      hw_PutPixel(x*8+j, y*13+i, (inv ^ (m & 0x80)) ? 0 : 1);
-      m <<= 1;
-		}
-	}
-}
-
-void machine_RedrawScreen() {
+void machine_UpdateScreen() {
   int x, y;
   uint8_t b, c, inv = 0, m;
   uint16_t pos;
 
   x = y = 0;
 
-  for (int j=0; j<208; j++) {
+  for (int j=0; j<192; j++) {
     pos = (j / CHARHEIGHT) * 32 + SCREEN_AT;
     for (int i=0; i<256; i++) {
       if ((i & 7) == 0) {
@@ -696,18 +538,6 @@ void machine_RedrawScreen() {
       m <<= 1;
     }
     y = (y + 1) % 8;
-  }
-}
-
-void machine_UpdateScreen() {
-}
-
-int vsyncs = 0;
-void machine_Event(uint8_t event) {
-  switch(event) {
-    case EVENT_VSYNC:
-      vsyncs ++;
-			break;
   }
 }
 

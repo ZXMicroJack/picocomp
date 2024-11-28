@@ -2,13 +2,22 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "pico/stdlib.h"
 
 #include "hardware/timer.h"
 #include "hardware/gpio.h"
 #include "hardware/pio.h"
+#include "pico/multicore.h"
 #include "pico/bootrom.h"
+
+#if defined(USB) && !defined (USBFAKE)
+#include "bsp/board.h"
+#include "tusb.h"
+#endif
+
+
 #include "connections.h"
 #include "cvideo.h"
 
@@ -36,53 +45,14 @@ uint32_t pix[CVIDEO_LINES*LINE_WORD_COUNT];
 
 
 void hw_UpdateScreen() {
-#if 0
-  /* Lock the screen for direct access to the pixels */
-  if ( SDL_MUSTLOCK(screen) ) {
-      if ( SDL_LockSurface(screen) < 0 ) {
-          fprintf(stderr, "Can't lock screen: %s\n", SDL_GetError());
-          return;
-      }
-  }
-
-  machine_UpdateScreen();
-
-  if ( SDL_MUSTLOCK(screen) ) {
-      SDL_UnlockSurface(screen);
-  }
-
-  /* Update just the part of the display that we've changed */
-  SDL_UpdateRect(screen, 0, 0, 256*2, 192*2);
-#endif
 	hw_Poll();
 }
 
 void hw_InitScreen() {
-#if 0
-  /* Initialize the SDL library */
-  if( SDL_Init(SDL_INIT_VIDEO) < 0 ) {
-     fprintf(stderr,
-             "Couldn't initialize SDL: %s\n", SDL_GetError());
-     exit(1);
-  }
+}
 
-  /* Clean up on exit */
-  atexit(SDL_Quit);
-  
-  /*
-  * Initialize the display in a 640x480 8-bit palettized mode,
-  * requesting a software surface
-  */
-  screen = SDL_SetVideoMode(640, 480, 8, SDL_SWSURFACE);
-  if ( screen == NULL ) {
-     fprintf(stderr, "Couldn't set 640x480x8 video mode: %s\n",
-                     SDL_GetError());
-     exit(1);
-  }
-
-  quit = 0;
-#endif
-
+void hw_ClearScreen() {
+  memset(pix, 0, sizeof pix);
 }
 
 static void putpixel_ll(int x, int y, uint8_t pixel) {
@@ -95,13 +65,22 @@ static void putpixel_ll(int x, int y, uint8_t pixel) {
 }
 
 void hw_PutPixel(int x, int y, uint32_t pixel) {
-  y += 16;
+  y += 32;
+  x += 48;
+
+#if 0
   putpixel_ll(x*3, y*2, pixel);
   putpixel_ll(x*3+1, y*2, pixel);
   putpixel_ll(x*3+2, y*2, pixel);
   putpixel_ll(x*3, y*2+1, pixel);
   putpixel_ll(x*3+1, y*2+1, pixel);
   putpixel_ll(x*3+2, y*2+1, pixel);
+#else
+  putpixel_ll(x*2, y*2, pixel);
+  putpixel_ll(x*2+1, y*2, pixel);
+  putpixel_ll(x*2, y*2+1, pixel);
+  putpixel_ll(x*2+1, y*2+1, pixel);
+#endif
 }
 
 static uint16_t keymap(uint16_t scancode) {
@@ -161,115 +140,22 @@ static uint16_t keymap(uint16_t scancode) {
 		case 'E': return KEY_REPEAT;
 		case 'P': return KEY_DELETE;
 		case 'O': return KEY_LIST;
+    case '!': return KEY_MENU;
+    case '?': return KEY_RESET;
 	}
 	return 0xff;
 }
 
 void hw_Poll() {
-#if 0
-  SDL_Event event;
-
-	/* Poll for events */
-	while( SDL_PollEvent( &event ) ){
-			switch( event.type ){
-					/* Keyboard event */
-					/* Pass the event data onto PrintKeyInfo() */
-					case SDL_KEYDOWN:
-					case SDL_KEYUP:
-							if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE) {
-								quit = 1;
-							} else if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_TAB) {
-								debug = !debug;
-							}
-
-							machine_ProcessKey(keymap(event.key.keysym.sym), event.type == SDL_KEYDOWN);
-							break;
-
-					/* SDL_QUIT event (window close) */
-					case SDL_QUIT:
-							quit = 1;
-							break;
-
-					default:
-							break;
-			}
-
-	}
-#endif
-
 }
 
 
 uint8_t *hw_readIn(const char *file, uint8_t *buffer, int max, unsigned long *actual) {
-#if 0
-  FILE *f = fopen(file, "rb");
-  if (f) {
-    fseek(f, 0, SEEK_END);
-    unsigned long size = ftell(f);
-    fseek(f, 0, SEEK_SET);
-
-    int toRead = max > size ? size : max;
-
-    if (buffer == NULL) {
-      buffer = (uint8_t *)malloc(toRead);
-    }
-    int l = fread(buffer, 1, toRead, f);
-    fclose(f);
-    printf("Read %d bytes from %s\n", l, file);
-
-    if (actual != NULL) *actual = l;
-
-    return buffer;
-  } else {
-    printf("Couldn't open file %s\n", file);
-  }
-#endif
   return NULL;
 }
 
 void hw_writeOut(const char *filename, void *data, int len) {
-#if 0
-  FILE *f = fopen(filename, "wb");
-  if (f) {
-    fwrite(data, 1, len, f);
-    fclose(f);
-  }
-#endif
-
 }
-
-#if 0
-int main(int argc, char **argv) {
-
-  signal(SIGINT, sighandler);
-
-  hw_InitScreen();
-
-  while (!quit) {
-  	machine_Poll();
-//    hw_UpdateScreen();
-
-
-  }
-
-	machine_Kill();
-//  writeOut("GALXram.bin", &mem[0x2000], 0x2000);
-
-  return 0;
-}
-
-#endif
-
-
-
-
-// uint32_t current_pix = 0;
-// uint32_t current_line = 0;
-
-// uint32_t data_callback(void) {
-//   if (current_pix >= CVIDEO_MAX_WORDS) current_pix = 0;
-//   return pix[current_pix++];
-// }
 
 #define AUDIO_SM_ID     0
 #define AUDIO_IRQ PIO1_IRQ_1
@@ -288,30 +174,35 @@ uint32_t machine_GetAudioOut(void) {
 }
 
 void machine_AudioIn(uint32_t samples) {
+//   machine_Poll();
 }
+
+static void z80_core() {
+  for(;;) {
+    machine_Poll();
+  }
+
+}
+
+static uint32_t runs = 0;
 
 int main()
 {
   // Defaults: UART 0, TX pin 0, RX pin 1, baud rate 115200
   stdio_init_all();
 
+#if defined(USB)
+  board_init();
+  tusb_init();
+#endif
   printf("PICOCOMP Hardware layer for RP2040 Microjack\'23\n\n");
-
-  /* create pattern */
-//   for (int i=0; i<CVIDEO_LINES; i++)
-//     for (int j=0; j<LINE_WORD_COUNT; j++)
-//       pix[i*LINE_WORD_COUNT+j] = (i&0x8) ? 0xffff0000 : 0x0000ffff;
 
   /* clear screen */
   memset(pix, 0, sizeof pix);
 
 //   current_pix = 0;
 
-  //cvideo_init_irq(pio0, CVIDEO_DATA_PIN, CVIDEO_SYNC_PIN, data_callback);
   cvideo_init_dma(pio0, CVIDEO_DATA_PIN, CVIDEO_SYNC_PIN, &pix[0]);
-
-//   struct repeating_timer timer;
-//   add_repeating_timer_ms(PONG_FRAME_INTERVAL_ms, pong_gametick_callback, NULL, &timer);
 
   uint offset = pio_add_program(pio1, &audio_program);
   audio_program_init(pio1, AUDIO_SM_ID, offset, AUDIO_IN_PIN, AUDIO_OUT_PIN);
@@ -325,22 +216,33 @@ int main()
 
   machine_Init();
 
+//   multicore_reset_core1();
+//   multicore_launch_core1(z80_core);
+
+
   int c;
   uint16_t k = 0;
   uint16_t lastkey = 0;
   uint64_t lastpress = 0;
   uint64_t lastdbg = 0;
+  int lshift = 0;
   for(;;) {
+#ifndef USB
     c = getchar_timeout_us(2);
     if (c == '|') break;
     k = keymap(c);
-    if (k != 0xff) {
-      machine_ProcessKey(k, 1);
-      lastkey = k;
-      lastpress = time_us_64();
+    if (c == KEY_LSHIFT) { // sticky lshift
+      lshift = !lshift;
+      machine_ProcessKey(k, lshift);
+    } else {
+      if (k != 0xff) {
+        machine_ProcessKey(k, 1);
+        lastkey = k;
+        lastpress = time_us_64();
+      }
     }
 
-    if (lastkey && (time_us_64() -lastpress) > 10000) {
+    if (lastkey && (time_us_64() -lastpress) > 50000) {
       lastpress = 0;
       machine_ProcessKey(lastkey, 0);
       lastkey = 0;
@@ -348,10 +250,17 @@ int main()
 
     if ((time_us_64() - lastdbg) > 1000000) {
       lastdbg = time_us_64();
-      printf("irqs = %d\n", irqs);
+      printf("irqs = %d; runs = %d\n", irqs, runs);
+    }
+#else
+    tuh_task();
+#endif
+
+    if (runs < irqs) {
+      machine_Poll();
+      runs ++;
     }
 
-    machine_Poll();
     machine_UpdateScreen();
   }
 

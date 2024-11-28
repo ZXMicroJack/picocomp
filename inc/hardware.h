@@ -61,9 +61,12 @@ enum {
 	KEY_REPEAT,
 	KEY_DELETE,
 	KEY_LIST,
-	KEY_ENDSTOP
+	KEY_ENDSTOP,
+	KEY_MENU,
+	KEY_RESET
 };
 
+void hw_ClearScreen();
 void hw_InitScreen();
 void hw_PutPixel(int x, int y, uint32_t pixel);
 void hw_UpdateScreen();

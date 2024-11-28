@@ -18,7 +18,7 @@ void sighandler(int *n) {
 	quit = 1;
 }
 
-void hw_UpdateScreen() {
+static void lock_screen() {
   /* Lock the screen for direct access to the pixels */
   if ( SDL_MUSTLOCK(screen) ) {
       if ( SDL_LockSurface(screen) < 0 ) {
@@ -27,16 +27,23 @@ void hw_UpdateScreen() {
       }
   }
 
-  machine_UpdateScreen();
+}
 
+static void unlock_screen() {
   if ( SDL_MUSTLOCK(screen) ) {
       SDL_UnlockSurface(screen);
   }
+}
+
+void hw_UpdateScreen() {
+  lock_screen();
+  machine_UpdateScreen();
 
   /* Update just the part of the display that we've changed */
-  SDL_UpdateRect(screen, 0, 0, 256*2, 192*2);
+  SDL_UpdateRect(screen, 0, 0, 640, 480);
 
-	hw_Poll();
+  hw_Poll();
+  unlock_screen();
 }
 
 void hw_InitScreen() {
@@ -62,6 +69,11 @@ void hw_InitScreen() {
   }
 
   quit = 0;
+}
+
+
+static void cls(SDL_Surface *surface) {
+  memset(surface->pixels, 0x00, 480 * surface->pitch);
 }
 
 /*
@@ -101,6 +113,12 @@ static void putpixel_ll(SDL_Surface *surface, int x, int y, Uint32 pixel)
     }
 }
 
+void hw_ClearScreen() {
+  lock_screen();
+  cls(screen);
+  unlock_screen();
+}
+
 void hw_PutPixel(int x, int y, uint32_t pixel) {
 	uint32_t _pixel = pixel ? 0xd7d7d7 : 0;
   putpixel_ll(screen, x*2, y*2, _pixel);
@@ -109,8 +127,16 @@ void hw_PutPixel(int x, int y, uint32_t pixel) {
   putpixel_ll(screen, x*2+1, y*2+1, _pixel);
 }
 
+#ifdef FS
+static void dirCB(const char *filename, uint32_t filesize, uint32_t cluster) {
+	printf("%s %lu 0x%08X\n", filename, filesize, cluster);
+}
+#endif
+
 static uint16_t keymap(uint16_t scancode) {
 	switch(scancode) {
+		case SDLK_F12: return KEY_MENU;
+    case SDLK_F11: return KEY_RESET;
 		case SDLK_a: return KEY_A;
 		case SDLK_b: return KEY_B;
 		case SDLK_c: return KEY_C;
@@ -235,11 +261,23 @@ void hw_writeOut(const char *filename, void *data, int len) {
   }
 }
 
+#define CARDFILE "card"
+int read_sector(int sector, uint8_t *buff) {
+  FILE *f = fopen(CARDFILE, "rb");
+  if (!f) return 1;
+  fseeko64(f, (uint64_t)sector*(uint64_t)512, SEEK_SET);
+  fread(buff, 1, 512, f);
+  fclose(f);
+  return 0;
+}
+
 int main(int argc, char **argv) {
 
   signal(SIGINT, sighandler);
 
   hw_InitScreen();
+
+  //init_fs();
 
   while (!quit) {
   	machine_Poll();
@@ -252,5 +290,7 @@ int main(int argc, char **argv) {
 
   return 0;
 }
+
+
 
 
