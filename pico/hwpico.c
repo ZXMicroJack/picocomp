@@ -269,5 +269,7 @@ int main()
   return 0;
 }
 
-
+void hw_Update() {
+  reset_usb_boot(0, 0);
+}
 

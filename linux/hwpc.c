@@ -271,6 +271,8 @@ int read_sector(int sector, uint8_t *buff) {
   return 0;
 }
 
+void hw_Update() {}
+
 int main(int argc, char **argv) {
 
   signal(SIGINT, sighandler);
@@ -290,7 +292,6 @@ int main(int argc, char **argv) {
 
   return 0;
 }
-
 
 
 

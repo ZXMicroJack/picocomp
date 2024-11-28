@@ -61,6 +61,7 @@ static const char *main_menu[] = {
 	"Hardware",
 	"Jumping Jack",
 	"Manic Miner",
+	"UPDATE",
 	NULL
 };
 
@@ -496,9 +497,8 @@ void machine_MenuCommand(int id, int item) {
     gtp_patch = 1;
     menuClose();
   } else if (item == (sizeof games / sizeof games[0])) {
-		Z80_Reset();
+		hw_Update();
 	}
-
 }
 
 static uint8_t menu_active = 0;
